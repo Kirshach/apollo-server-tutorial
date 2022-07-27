@@ -1,12 +1,13 @@
 import { makeSchema } from 'nexus';
 import path from 'path';
 
-import { Link, LinkQuery } from './graphql';
+import * as types from './graphql';
 
 const root = path.resolve(__dirname, '../');
 
+console.log({ types })
 const schema = makeSchema({
-  types: [Link, LinkQuery],
+  types,
   outputs: {
     schema: path.join(root, "schema.graphql"),
     typegen: path.join(root, "nexus-typegen.ts")
