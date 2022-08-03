@@ -5,7 +5,6 @@ import * as types from './graphql';
 
 const root = path.resolve(__dirname, '../');
 
-console.log({ types })
 const schema = makeSchema({
   types,
   outputs: {

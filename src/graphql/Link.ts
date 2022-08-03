@@ -44,7 +44,8 @@ export const QueryLink = extendType({
         id: nonNull(stringArg()),
       },
       resolve(_root, { id }) {
-        const link = links.find(item => item.id === id);
+        const link = links.find(item => item.id === +id);
+        if (!link) throw new Error('No Link found with id ' + id);
         return link;
       }
     })
@@ -101,7 +102,8 @@ export const DeleteLink = extendType({
       args: { id: nonNull(intArg()) },
       resolve(_root, { id }) {
         const linkIndex = links.findIndex(item => item.id === id);
-        const link = links.splice(linkIndex, 1);
+        if (linkIndex === 1) throw new Error();
+        const link = links.splice(linkIndex, 1)[0];
         return link;
       }
     })
