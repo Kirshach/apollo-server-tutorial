@@ -1,18 +1,4 @@
-import { extendType, objectType, nonNull, stringArg, intArg } from "nexus";
-import { NexusGenObjects } from "../../nexus-typegen";
-
-let links: NexusGenObjects["Link"][] = [
-  {
-    id: 1,
-    url: "www.howtographql.com",
-    description: "Fullstack tutorial for GraphQL",
-  },
-  {
-    id: 2,
-    url: "graphql.org",
-    description: "GraphQL official website",
-  },
-];
+import { extendType, objectType, nonNull, stringArg, intArg } from 'nexus';
 
 export const Link = objectType({
   name: 'Link',
@@ -20,6 +6,14 @@ export const Link = objectType({
     t.nonNull.int('id');
     t.nonNull.string('description');
     t.nonNull.string('url');
+    t.field('postedBy', {
+      type: 'User',
+      resolve(parent, _args, context) {
+        return context.prisma.link
+          .findUnique({ where: { id: parent.id } })
+          .postedBy();
+      }
+    });
   }
 });
 
@@ -28,8 +22,8 @@ export const QueryFeed = extendType({
   definition(t) {
     t.nonNull.list.nonNull.field('feed', {
       type: 'Link',
-      resolve() {
-        return links;
+      resolve(_root, _args, { prisma }) {
+        return prisma.link.findMany();
       }
     })
   }
@@ -40,13 +34,9 @@ export const QueryLink = extendType({
   definition(t) {
     t.nonNull.field('link', {
       type: 'Link',
-      args: {
-        id: nonNull(stringArg()),
-      },
-      resolve(_root, { id }) {
-        const link = links.find(item => item.id === +id);
-        if (!link) throw new Error('No Link found with id ' + id);
-        return link;
+      args: { id: nonNull(intArg()) },
+      resolve(_root, { id }, { prisma }) {
+        return prisma.link.findUnique({ where: { id } });
       }
     })
   }
@@ -61,11 +51,15 @@ export const CreateLink = extendType({
         description: nonNull(stringArg()),
         url: nonNull(stringArg()),
       },
-      resolve(_root, { description, url }) {
-        const id = links.length + 1;
-        const link = { id, description, url };
-        links.push(link);
-        return link;
+      resolve(_root, { description, url }, { prisma, userId }) {
+        if (!userId) throw new Error('Need to be logged to create a link');
+        return prisma.link.create({
+          data: {
+            description,
+            url,
+            postedBy: { connect: { id: userId } }
+          }
+        });
       }
     })
   },
@@ -81,14 +75,13 @@ export const EditLink = extendType({
         description: stringArg(),
         url: stringArg(),
       },
-      resolve(_root, { id, description, url }) {
-        const link = links.find(item => item.id === id);
-        if (!link) {
-          throw new Error('No link found');
-        }
-        if (description) link.description = description;
-        if (url) link.url = url;
-        return link;
+      resolve(_root, { id, description, url }, { prisma }) {
+        return prisma.link.update({
+          where: { id },
+          data: Object.entries({ description, url })
+            // only add those fields that are present in the args
+            .reduce((acc, [key, prop]) => prop ? { ...acc, [key]: prop } : acc, {})
+        });
       }
     })
   }
@@ -100,11 +93,8 @@ export const DeleteLink = extendType({
     t.nonNull.field('delete', {
       type: 'Link',
       args: { id: nonNull(intArg()) },
-      resolve(_root, { id }) {
-        const linkIndex = links.findIndex(item => item.id === id);
-        if (linkIndex === 1) throw new Error();
-        const link = links.splice(linkIndex, 1)[0];
-        return link;
+      resolve(_root, { id }, { prisma }) {
+        return prisma.link.delete({ where: { id } });
       }
     })
   }
